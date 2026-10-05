@@ -1,0 +1,10 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:browser-test-uid
+DTSTART;VALUE=DATE:20261009
+SUMMARY:Assignment Due: Browser import check
+LOCATION:Test Course
+DESCRIPTION:Confirm the Canvas import workflow.
+END:VEVENT
+END:VCALENDAR
