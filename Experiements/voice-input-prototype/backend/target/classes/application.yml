@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: assignitdone-voice-experiment
+  config:
+    import: "optional:file:./.env[.properties]"
+
+server:
+  address: 127.0.0.1
+  port: 8080
+
+experiment:
+  mock: ${AI_MOCK:true}
+
+ollama:
+  api-key: ${OLLAMA_API_KEY:}
+  model: ${OLLAMA_MODEL:gemma4:31b}
