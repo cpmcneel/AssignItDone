@@ -26,6 +26,8 @@ const FOLDERS_KEY = 'assignitdone.study-folders.v1';
 const DECKS_KEY = 'assignitdone.study-decks.v1';
 
 function readStored(key) {
+  // LocalStorage stores arrays of folders/decks as JSON strings. If the saved data is missing
+  // or invalid, fall back to an empty list instead of crashing the app.
   try {
     const value = JSON.parse(localStorage.getItem(key));
     return Array.isArray(value) ? value : [];
@@ -41,6 +43,8 @@ function NoteUpload({ onUpload, disabled }) {
   async function handleFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Keep the UI responsive while the note parser reads and converts the uploaded file.
     setBusy(true);
     try {
       await onUpload(file);
@@ -52,11 +56,11 @@ function NoteUpload({ onUpload, disabled }) {
 
   return (
     <div className="notes-dropzone">
-      <input ref={inputRef} className="visually-hidden" type="file" accept=".pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown" onChange={handleFile} />
+      <input ref={inputRef} className="visually-hidden" type="file" accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" onChange={handleFile} />
       <div className="upload-icon"><FileText size={23} /></div>
       <div className="upload-copy">
         <h3>{busy ? 'Reading your notes…' : 'Turn notes into flashcards'}</h3>
-        <p>Upload a PDF, Markdown, or text file. Your notes are processed in this browser.</p>
+        <p>Upload a PDF, Word document, Markdown, or text file. Your notes are processed in this browser.</p>
       </div>
       <button className="button primary-button" type="button" disabled={busy || disabled} onClick={() => inputRef.current?.click()}><Plus size={17} /> Upload notes</button>
     </div>
@@ -231,18 +235,24 @@ export default function StudyWorkspace() {
 
   async function addNotes(file) {
     if (!selectedFolder) return;
+
     try {
+      // 1) Convert the uploaded file into plain text.
       const noteText = await extractNoteText(file);
       if (!noteText.trim()) throw new Error('No readable text was found in that file.');
+
+      // 2) Turn the text into flashcards only if it contains enough content to study.
       const cards = generateFlashcards(noteText);
       if (!cards.length) throw new Error('No study-ready text found. Try notes with definitions, Markdown headings, or longer fact sentences.');
-      const baseTitle = file.name.replace(/\.(pdf|txt|md|markdown)$/i, '');
+
+      // 3) Save the deck under the selected class folder.
+      const baseTitle = file.name.replace(/\.(pdf|docx|txt|md|markdown)$/i, '');
       const deck = createDeck({ title: baseTitle, folderId: selectedFolder.id, sourceName: file.name, cards });
       setDecks((current) => [...current, deck]);
       setSelectedDeckId(deck.id);
       setNotice(`Created ${cards.length} flashcards from ${file.name}. Review them before practice.`);
     } catch (error) {
-      setNotice(error.message || 'Could not read that notes file. Try a PDF, Markdown, or text file.');
+      setNotice(error.message || 'Could not read that notes file. Try a PDF, Word document, Markdown, or text file.');
     }
   }
 
@@ -250,7 +260,13 @@ export default function StudyWorkspace() {
 
   return (
     <section className="study-workspace" aria-labelledby="study-heading">
-      <div className="study-heading-row"><div><p className="eyebrow">YOUR STUDY SPACE</p><h1 id="study-heading">Make it stick.</h1><p>Turn your class notes into a study deck, then talk through what you remember.</p></div><div className="study-heading-mark"><Library size={24} /><span>{decks.length} {decks.length === 1 ? 'deck' : 'decks'}</span></div></div>
+      <div className="study-heading-row"><div><p className="eyebrow">STUDY TIME</p><h1 id="study-heading">Turn notes into simple study cards.</h1><p>Pick a class, upload notes, and make quick questions you can practice later.</p></div><div className="study-heading-mark"><Library size={24} /><span>{decks.length} {decks.length === 1 ? 'study set' : 'study sets'}</span></div></div>
+      <div className="study-steps" aria-label="How this works">
+        <span>1. Pick a class</span>
+        <span>2. Upload notes</span>
+        <span>3. Make cards</span>
+        <span>4. Practice</span>
+      </div>
       <p className="notice study-notice" role="status" aria-live="polite">{notice}</p>
       <div className="library-layout">
         <aside className="folder-sidebar" aria-label="Class folders">
@@ -270,7 +286,7 @@ export default function StudyWorkspace() {
         <div className="library-content">
           {selectedFolder ? (
             <>
-              <div className="library-content-heading"><div><span className="eyebrow">CLASS FOLDER</span><h2>{selectedFolder.name}</h2></div>{folderDecks.length > 0 && <span className="deck-count-label">{folderDecks.length} {folderDecks.length === 1 ? 'deck' : 'decks'}</span>}</div>
+              <div className="library-content-heading"><div><span className="eyebrow">CLASS FOLDER</span><h2>{selectedFolder.name}</h2></div>{folderDecks.length > 0 && <span className="deck-count-label">{folderDecks.length} {folderDecks.length === 1 ? 'study set' : 'study sets'}</span>}</div>
               <NoteUpload onUpload={addNotes} />
               {folderDecks.length ? (
                 <div className="deck-grid">{folderDecks.map((deck) => <button className="deck-tile" key={deck.id} type="button" onClick={() => setSelectedDeckId(deck.id)}><span className="deck-tile-icon"><BookOpen size={20} /></span><span className="deck-tile-copy"><strong>{deck.title}</strong><small>{deck.cards.length} cards · {new Date(deck.createdAt).toLocaleDateString()}</small></span><ArrowRight size={17} /></button>)}</div>
@@ -281,7 +297,7 @@ export default function StudyWorkspace() {
           ) : (
             <div className="study-welcome"><div className="welcome-symbol"><FolderPlus size={26} /></div><span className="eyebrow">START A STUDY FOLDER</span><h2>One class at a time.</h2><p>Create a folder for a course. Add notes there to keep its flashcards and practice sessions together.</p><button className="button primary-button" type="button" onClick={() => setAddingFolder(true)}><Plus size={17} /> Create class folder</button></div>
           )}
-          {folders.length > 0 && <div className="study-footnote"><ChevronDown size={15} /><span>Supported notes: searchable PDFs, .txt, and Markdown. Images and handwriting need readable text or OCR.</span></div>}
+          {folders.length > 0 && <div className="study-footnote"><ChevronDown size={15} /><span>Supported notes: searchable PDFs, .docx, .txt, and Markdown. Images and handwriting need readable text or OCR.</span></div>}
         </div>
       </div>
     </section>

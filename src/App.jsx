@@ -39,6 +39,8 @@ function createSamples() {
 }
 
 function readAssignments() {
+  // Load saved work items from localStorage. If nothing is there yet, fall back to sample tasks so
+  // the planner feels usable on first launch instead of appearing empty.
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
     return Array.isArray(stored) ? stored : createSamples();
@@ -83,36 +85,36 @@ function AssignmentDialog({ assignment, onClose, onSave, voiceTranscript }) {
       <section className="assignment-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
         <div className="dialog-heading">
           <div>
-            <span className="eyebrow">YOUR COURSEWORK</span>
-            <h2 id="dialog-title">{isEditing ? 'Edit assignment' : 'Add an assignment'}</h2>
+            <span className="eyebrow">YOUR TASKS</span>
+            <h2 id="dialog-title">{isEditing ? 'Edit task' : 'Add a task'}</h2>
           </div>
           <button className="icon-button quiet" type="button" onClick={onClose} aria-label="Close dialog"><X size={20} /></button>
         </div>
-        {voiceTranscript && <div className="voice-review"><Mic size={17} /><p><strong>I heard:</strong> {voiceTranscript}<br />Review the details before saving.</p></div>}
+        {voiceTranscript && <div className="voice-review"><Mic size={17} /><p><strong>I heard:</strong> {voiceTranscript}<br />Check it and save it if it looks right.</p></div>}
         <form onSubmit={submit} className="assignment-form">
-          <label className="field full-field">Assignment name
+          <label className="field full-field">Task name
             <input autoFocus required maxLength={80} value={form.title} onChange={(event) => update('title', event.target.value)} placeholder="e.g. Research proposal" />
           </label>
-          <label className="field full-field">Course
+          <label className="field full-field">Class
             <input required maxLength={60} value={form.course} onChange={(event) => update('course', event.target.value)} placeholder="e.g. Human Computer Interaction" />
           </label>
-          <label className="field">Due date
+          <label className="field">When is it due?
             <input required type="date" value={form.dueDate} onChange={(event) => update('dueDate', event.target.value)} />
           </label>
-          <label className="field">Time estimate
+          <label className="field">How long?
             <span className="input-with-suffix"><input required min="5" max="999" type="number" value={form.minutes} onChange={(event) => update('minutes', event.target.value)} /><span>min</span></span>
           </label>
-          <label className="field full-field">Priority
+          <label className="field full-field">How important?
             <select value={form.priority} onChange={(event) => update('priority', event.target.value)}>
               <option>Low</option><option>Medium</option><option>High</option>
             </select>
           </label>
-          <label className="field full-field">Notes <span className="optional-label">Optional</span>
-            <textarea rows="3" maxLength={240} value={form.details || ''} onChange={(event) => update('details', event.target.value)} placeholder="Add a helpful reminder" />
+          <label className="field full-field">Extra note <span className="optional-label">Optional</span>
+            <textarea rows="3" maxLength={240} value={form.details || ''} onChange={(event) => update('details', event.target.value)} placeholder="Add a reminder" />
           </label>
           <div className="dialog-actions full-field">
             <button className="button secondary-button" type="button" onClick={onClose}>Cancel</button>
-            <button className="button primary-button" type="submit"><Check size={17} /> Save assignment</button>
+            <button className="button primary-button" type="submit"><Check size={17} /> Save task</button>
           </div>
         </form>
       </section>
@@ -150,7 +152,7 @@ export default function App() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
-  const [notice, setNotice] = useState('Sample assignments are ready. Import a calendar file whenever you want.');
+  const [notice, setNotice] = useState('Your tasks are ready. You can add a task, pick a time, or import a calendar.');
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [voiceActive, setVoiceActive] = useState(false);
@@ -167,7 +169,7 @@ export default function App() {
       setTimerSeconds((seconds) => {
         if (seconds <= 1) {
           setTimerRunning(false);
-          setNotice('Time is up. Take a breath, then choose your next step.');
+          setNotice('Time is up. Nice job. Pick your next step when you’re ready.');
           return 0;
         }
         return seconds - 1;
@@ -185,12 +187,13 @@ export default function App() {
   const timerRemainder = (timerSeconds % 60).toString().padStart(2, '0');
 
   function saveAssignment(values) {
+    // Create a new task or update an existing one, then close the modal and show a quick confirmation.
     if (values.id) {
       setAssignments((current) => current.map((item) => item.id === values.id ? { ...item, ...values } : item));
-      setNotice(`${values.title} updated.`);
+      setNotice(`${values.title} was updated.`);
     } else {
       setAssignments((current) => [...current, { ...values, id: crypto.randomUUID(), completed: false }]);
-      setNotice(`${values.title} added to your list.`);
+      setNotice(`${values.title} was added to your list.`);
     }
     setDialogOpen(false);
     setDialogAssignment(null);
@@ -212,8 +215,10 @@ export default function App() {
   }
 
   function chooseNextTask() {
+    // Pick the next action by checking which assignment is both soonest and small enough to match
+    // the amount of time the student says they have available.
     setRecommendationId(recommended?.id || null);
-    setNotice(recommended ? (recommendationFits ? `${recommended.title} is a good fit for ${availableMinutes} minutes.` : `Nothing fits ${availableMinutes} minutes yet. ${recommended.title} is the closest upcoming task.`) : 'You’re all caught up. Add a task whenever you’re ready.');
+    setNotice(recommended ? (recommendationFits ? `${recommended.title} is a good match for ${availableMinutes} minutes.` : `Nothing quite fits ${availableMinutes} minutes yet. ${recommended.title} is the closest one.`) : 'You’re all set. Add a task when you want a new next step.');
   }
 
   function startTimer() {
@@ -243,7 +248,7 @@ export default function App() {
       setDialogAssignment({ ...draft, dueDate: draft.dueDate || dateOffset(3), priority: 'Medium', details: '' });
       setVoiceTranscript(transcript);
       setDialogOpen(true);
-      setNotice('Review the assignment details I heard, then save when they look right.');
+      setNotice('I heard a task. Check it, then save it when it looks right.');
       return;
     }
     if (/what('s| is) due|show my assignments|what do i have/.test(command)) {
@@ -254,6 +259,8 @@ export default function App() {
   }
 
   function startVoice() {
+    // Opt into browser speech recognition when available. The main app then turns spoken commands
+    // into either task updates or assignment creation prompts.
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setVoiceSupported(false);
@@ -271,23 +278,32 @@ export default function App() {
     recognition.start();
   }
 
+  function applyCanvasImport(parsedAssignments) {
+    // Keep imports idempotent: if the same Canvas event has already been stored, ignore it.
+    const existingUids = new Set(assignments.map((assignment) => assignment.sourceUid).filter(Boolean));
+    const imported = parsedAssignments
+      .filter((assignment) => !existingUids.has(assignment.sourceUid))
+      .map((assignment) => ({ ...assignment, id: crypto.randomUUID() }));
+
+    if (!imported.length) {
+      setNotice('This Canvas calendar is already up to date.');
+      return;
+    }
+
+    setAssignments((current) => [...current, ...imported]);
+    setNotice(`${imported.length} ${imported.length === 1 ? 'assignment' : 'assignments'} imported from Canvas. Your data stays in this browser.`);
+  }
+
   function importCalendar(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const parsed = parseCanvasCalendar(String(reader.result));
         if (!parsed.length) throw new Error('No assignment events were found.');
-        const existingUids = new Set(assignments.map((assignment) => assignment.sourceUid).filter(Boolean));
-        const imported = parsed.filter((assignment) => !existingUids.has(assignment.sourceUid))
-          .map((assignment) => ({ ...assignment, id: crypto.randomUUID() }));
-        if (!imported.length) {
-          setNotice('This Canvas calendar is already up to date.');
-        } else {
-          setAssignments((current) => [...current, ...imported]);
-          setNotice(`${imported.length} ${imported.length === 1 ? 'assignment' : 'assignments'} imported from Canvas. Your data stays in this browser.`);
-        }
+        applyCanvasImport(parsed);
       } catch {
         setNotice('That calendar could not be imported. Choose a Canvas calendar export in .ics format.');
       }
@@ -308,30 +324,30 @@ export default function App() {
           <span>Assign<span className="brand-accent">IT</span>Done</span>
         </a>
         <div className="top-actions">
-          <label className="button secondary-button import-button" title="Import Canvas calendar">
+          <label className="button secondary-button import-button" title="Import class schedule">
             <FileUp size={17} />
-            <span className="import-label">Import Canvas calendar</span>
+            <span className="import-label">Import class schedule</span>
             <span className="visually-hidden">Choose a Canvas calendar file</span>
-            <input className="visually-hidden" type="file" accept="text/calendar,.ics,.ical" aria-label="Import Canvas calendar" onChange={importCalendar} />
+            <input className="visually-hidden" type="file" accept="text/calendar,.ics,.ical" aria-label="Import class schedule" onChange={importCalendar} />
           </label>
-          <button className="icon-button add-button" type="button" onClick={() => openDialog()} aria-label="Add an assignment"><Plus size={23} /></button>
+          <button className="icon-button add-button" type="button" onClick={() => openDialog()} aria-label="Add a task"><Plus size={23} /></button>
         </div>
       </header>
 
       <main id="top" className="main-content">
         <nav className="workspace-tabs" aria-label="Main workspace">
-          <button className={`workspace-tab ${activeView === 'tasks' ? 'active-tab' : ''}`} type="button" aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => setActiveView('tasks')}><CalendarDays size={17} /> Tasks</button>
-          <button className={`workspace-tab ${activeView === 'study' ? 'active-tab' : ''}`} type="button" aria-current={activeView === 'study' ? 'page' : undefined} onClick={() => setActiveView('study')}><BookOpen size={17} /> Study library</button>
+          <button className={`workspace-tab ${activeView === 'tasks' ? 'active-tab' : ''}`} type="button" aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => setActiveView('tasks')}><CalendarDays size={17} /> My list</button>
+          <button className={`workspace-tab ${activeView === 'study' ? 'active-tab' : ''}`} type="button" aria-current={activeView === 'study' ? 'page' : undefined} onClick={() => setActiveView('study')}><BookOpen size={17} /> Study</button>
         </nav>
         {activeView === 'tasks' ? <>
         <section className="intro-section" aria-labelledby="page-title">
           <p className="eyebrow date-label">{formatLongDate()}</p>
           <div className="intro-line">
             <div>
-              <h1 id="page-title">What can you get done?</h1>
-              <p className="intro-copy">Tell me how much time you have. I’ll help choose the best next step.</p>
+              <h1 id="page-title">What should we do next?</h1>
+              <p className="intro-copy">Pick how much time you have. I’ll help choose the next thing to do.</p>
             </div>
-            <div className="calendar-ready"><span className="ready-dot" /> Your day, in hand</div>
+            <div className="calendar-ready"><span className="ready-dot" /> Your plan for today</div>
           </div>
         </section>
 
@@ -340,7 +356,7 @@ export default function App() {
         <section className="focus-panel" aria-labelledby="time-title">
           <div className="focus-controls">
             <div className="time-control-group">
-              <h2 id="time-title">I have</h2>
+              <h2 id="time-title">I have this much time</h2>
               <div className="time-row">
                 <div className="stepper" aria-label="Available time">
                   <button type="button" onClick={() => setAvailableMinutes((value) => Math.max(5, value - 10))} aria-label="Subtract ten minutes">−</button>
@@ -348,7 +364,7 @@ export default function App() {
                   <span>minutes</span>
                   <button type="button" onClick={() => setAvailableMinutes((value) => Math.min(600, value + 10))} aria-label="Add ten minutes">+</button>
                 </div>
-                <button className="button primary-button find-button" type="button" onClick={chooseNextTask}><Sparkles size={19} /> Find my next task</button>
+                <button className="button primary-button find-button" type="button" onClick={chooseNextTask}><Sparkles size={19} /> Pick my next step</button>
                 <button className={`icon-button voice-button ${voiceActive ? 'is-listening' : ''}`} type="button" onClick={startVoice} aria-label={voiceActive ? 'Listening for voice command' : 'Ask by voice'} title={voiceSupported ? 'Ask by voice' : 'Voice input is not supported'}><Mic size={21} /></button>
               </div>
             </div>
@@ -357,7 +373,7 @@ export default function App() {
                 <article className={`recommendation ${recommendationId === recommended.id ? 'is-selected' : ''}`}>
                   <div className="sparkle-tile"><Sparkles size={25} /></div>
                   <div className="recommendation-copy">
-                    <p className="eyebrow">{recommendationFits ? `Best fit for ${availableMinutes} minutes` : `Next up · ${availableMinutes} min available`}</p>
+                    <p className="eyebrow">{recommendationFits ? `Best match for ${availableMinutes} minutes` : `Next up · ${availableMinutes} min available`}</p>
                     <h2>{recommended.title}</h2>
                     <p className="recommendation-description">{formatDueDate(recommended.dueDate)}. {recommendationFits ? `Its ${recommended.minutes}-minute estimate fits the time you have.` : `Estimated at ${recommended.minutes} minutes.`}</p>
                     <div className="recommendation-meta"><span><Clock3 size={16} /> About {recommended.minutes} minutes</span><span className="due-accent">{formatDueDate(recommended.dueDate)}</span></div>
@@ -379,8 +395,8 @@ export default function App() {
 
         <section className="assignments-section" aria-labelledby="upcoming-title">
           <div className="section-heading">
-            <div><p className="eyebrow">Your workload · {completed.length} complete</p><h2 id="upcoming-title">Coming up <span className="count-pill">{incomplete.length}</span></h2></div>
-            <button className="button secondary-button add-text-button" type="button" onClick={() => openDialog()}><Plus size={17} /> Add assignment</button>
+            <div><p className="eyebrow">Your list · {completed.length} done</p><h2 id="upcoming-title">Next up <span className="count-pill">{incomplete.length}</span></h2></div>
+            <button className="button secondary-button add-text-button" type="button" onClick={() => openDialog()}><Plus size={17} /> Add a task</button>
           </div>
           {incomplete.length ? (
             <div className="assignment-list">
@@ -394,13 +410,13 @@ export default function App() {
         {completed.length > 0 && (
           <section className="completed-section">
             <button className="completed-toggle" type="button" aria-expanded={showCompleted} onClick={() => setShowCompleted((value) => !value)}>
-              <span>Completed <span className="count-pill">{completed.length}</span></span><ChevronDown size={18} className={showCompleted ? 'chevron-open' : ''} />
+              <span>Done <span className="count-pill">{completed.length}</span></span><ChevronDown size={18} className={showCompleted ? 'chevron-open' : ''} />
             </button>
             {showCompleted && <div className="assignment-list completed-list">{completed.map((assignment) => <AssignmentRow key={assignment.id} assignment={assignment} onEdit={openDialog} onToggle={toggleAssignment} />)}</div>}
           </section>
         )}
 
-        <footer className="privacy-note"><span className="privacy-symbol"><AlarmClock size={15} /></span><p><strong>Your space stays yours.</strong> Assignments are saved only in this browser on this device.</p></footer>
+        <footer className="privacy-note"><span className="privacy-symbol"><AlarmClock size={15} /></span><p><strong>Your list stays on this device.</strong> Nothing is shared unless you choose to import something.</p></footer>
         </> : <StudyWorkspace />}
       </main>
 

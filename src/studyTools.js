@@ -9,6 +9,7 @@ const stopWords = new Set([
 ]);
 
 function cleanPhrase(value) {
+  // Normalize note text so the card generator works consistently across files, markdown, and plain text.
   return value
     .replace(/^[-*#>\s]+/, '')
     .replace(/\[[^\]]*\]\([^)]*\)/g, (link) => link.match(/\[([^\]]*)\]/)?.[1] || '')
@@ -30,16 +31,22 @@ function makeCard(front, back, source, index) {
 }
 
 function questionForStatement(statement) {
+  // Turn a sentence from notes into a quiz question instead of dumping the raw text into a card.
   const about = statement.match(/^([A-Z][\w'’-]*(?:\s+[A-Z][\w'’-]*){0,3})\s+(?:is|are|means|refers to|describes|represents|consists of)\s+(.+)$/i);
   if (about) return { front: `What is ${about[1]}?`, back: about[2] };
+
   const hasColon = statement.match(/^([\w][^:]{1,70}):\s*(.{12,})$/);
   if (hasColon) return { front: `What should you know about ${hasColon[1]}?`, back: hasColon[2] };
+
   const relation = statement.match(/^(.{3,65}?)\s+(?:includes|requires|causes|supports|allows|uses|contains)\s+(.{12,})$/i);
   if (relation) return { front: `How does ${relation[1]} work?`, back: `${statement}` };
+
   return null;
 }
 
 export function generateFlashcards(noteText) {
+  // Build a study deck from note text by scanning headings and sentences, then keeping only
+  // useful candidate facts that can be turned into question/answer cards.
   const text = String(noteText || '').replace(/\r/g, '').trim();
   if (!text) return [];
 
@@ -47,6 +54,7 @@ export function generateFlashcards(noteText) {
     const heading = /^\s*#{1,6}\s/.test(line);
     return { heading, text: cleanPhrase(line.replace(/^\s*#{1,6}\s*/, '')) };
   }).filter(({ text: line }) => Boolean(line));
+
   const candidateSentences = [];
   let currentHeading = '';
   for (const line of lines) {
@@ -88,13 +96,17 @@ export function generateFlashcards(noteText) {
 }
 
 export function gradeAnswer(response, expectedAnswer) {
+  // Compare the student’s answer against the note keywords. This lets the app tell the user
+  // whether they got the core concept, only part of it, or need more review.
   const responseWords = new Set(normalizeTerm(response).match(/[a-z0-9]+/g) || []);
   const expectedWords = [...new Set(normalizeTerm(expectedAnswer).match(/[a-z0-9]+/g) || [])]
     .filter((word) => word.length > 2 && !stopWords.has(word));
+
   const matched = expectedWords.filter((word) => responseWords.has(word));
   const missing = expectedWords.filter((word) => !responseWords.has(word));
   const coverage = expectedWords.length ? matched.length / expectedWords.length : 0;
   const status = coverage >= 0.62 ? 'correct' : coverage >= 0.28 ? 'partial' : 'review';
+
   const feedback = status === 'correct'
     ? 'You covered the main ideas from your notes.'
     : status === 'partial'
