@@ -1,0 +1,16 @@
+spring:
+  servlet:
+    encoding:
+      charset: UTF-8
+      force-response: true
+  config:
+      import: "optional:file:.env[.properties]"
+  application:
+    name: springai-tutorial
+  ai:
+    openai:
+      base-url: https://ollama.com/v1
+      api-key: ${OLLAMA_API_KEY}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL}
