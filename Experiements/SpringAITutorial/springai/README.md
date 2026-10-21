@@ -18,7 +18,8 @@ The project uses Ollama for AI model access. To run it, create an API key at htt
 
 ## References
 
-- Spring AI Documentation: https://docs.spring.io/spring-ai/reference/
-- Ollama: https://ollama.com/
+- **Tutorial Followed:** [Spring AI Tutorial | Build Your First AI App with Java Spring Boot!](https://www.youtube.com/watch?v=zglUkgkLkh0) by Selenium Express
+- **Spring AI Documentation:** https://docs.spring.io/spring-ai/reference/
+- **Ollama:** https://ollama.com/
 
 This tutorial was completed as part of our team's research and experimentation for AssignItDone.
