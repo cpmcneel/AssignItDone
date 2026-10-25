@@ -1,0 +1,10 @@
+* { box-sizing: border-box; }
+:root { font-family: system-ui, sans-serif; color: #172e2a; background: #f3f6f3; font-synthesis: none; line-height: 1.6; }
+body { margin: 0; }
+button, textarea { font: inherit; }
+button { cursor: pointer; border: 1px solid #9baea6; border-radius: 8px; background: white; color: #172e2a; padding: 10px 16px; }
+button:disabled { cursor: default; opacity: .5; }
+button:focus-visible, textarea:focus-visible { outline: 3px solid #278976; outline-offset: 3px; }
+h1 { font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.15; margin: 10px 0 18px; }
+h2 { font-size: 1.25rem; margin-top: 0; }
+p { margin: 10px 0; }

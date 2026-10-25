@@ -1,0 +1,12 @@
+main { max-width: 820px; margin: auto; padding: 44px 20px; }
+header { margin-bottom: 32px; }
+.eyebrow { font-size: .75rem; font-weight: 700; letter-spacing: .13em; color: #316b59; }
+section { background: white; padding: 24px; border: 1px solid #d4dfd8; border-radius: 14px; margin-bottom: 20px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.hint { font-size: .85rem; color: #4c655b; }
+.transcript { background: #f3f6f3; border-radius: 8px; padding: 14px; margin: 18px 0; overflow-wrap: anywhere; }
+label { display: block; font-weight: 600; margin-bottom: 8px; }
+textarea { width: 100%; resize: vertical; border: 1px solid #9baea6; border-radius: 8px; padding: 12px; color: inherit; background: white; }
+.primary { background: #215d49; border-color: #215d49; color: white; margin-top: 12px; }
+.response { white-space: pre-wrap; overflow-wrap: anywhere; margin: 18px 0; }
+.error { background: #fff1ed; color: #902e18; padding: 16px; border-radius: 8px; }
