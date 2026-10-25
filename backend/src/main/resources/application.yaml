@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: backend
+
+app:
+  api:
+    title: AssignItDone API
+    description: REST API for the AssignItDone assignment and study application.
+    version: 0.0.1
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true

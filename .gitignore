@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Maven build output
+**/target/
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# File-backed H2 databases
+**/data/
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Logs
+*.log
+
+# Frontend dependencies and builds
+**/node_modules/
+**/dist/
+
+# Local backend notes
+/backend/README.md

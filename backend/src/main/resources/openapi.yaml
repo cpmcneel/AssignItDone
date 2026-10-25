@@ -1,0 +1,7 @@
+openapi: 3.0.3
+info:
+  title: AssignItDone API
+  description: API contract for the AssignItDone backend.
+  version: 0.0.1
+# Define endpoints here and DTOs under components.schemas, then regenerate.
+paths: {}
