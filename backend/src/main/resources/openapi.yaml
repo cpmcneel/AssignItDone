@@ -1,4 +1,6 @@
 openapi: 3.0.3
+#Used Codex to help draft the OpenAPI schema, then reviewed and adjusted the endpoints, request bodies, and responses to fit the project.
+#"Create an OpenAPI schema for the class, task endpoints. Include simple request and response schemas, required fields, and error responses. Follow the existing project conventions."
 info:
   title: AssignItDone API
   description: API contract for the AssignItDone backend.

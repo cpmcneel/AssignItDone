@@ -1,4 +1,6 @@
 databaseChangeLog:
+#Used Codex to help draft the database tables, Liquibase changes, and JPA entities, then reviewed and adjusted the code to fit the project.
+#"Create simple Liquibase changes, JPA entities, and repositories for classes, tasks, decks, and flashcards using H2. Follow the existing project conventions, include the required foreign keys, and keep the code readable. Do not add endpoints or tests yet."
   - include:
       file: changes/001-create-classes.yaml
       relativeToChangelogFile: true
