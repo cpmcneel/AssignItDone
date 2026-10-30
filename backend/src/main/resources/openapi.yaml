@@ -3,5 +3,312 @@ info:
   title: AssignItDone API
   description: API contract for the AssignItDone backend.
   version: 0.0.1
-# Define endpoints here and DTOs under components.schemas, then regenerate.
-paths: {}
+paths:
+  /api/classes:
+    get:
+      operationId: listClasses
+      summary: List classes
+      description: Returns all classes ordered by ID.
+      tags: [Classes]
+      responses:
+        '200':
+          description: Classes retrieved successfully. Returns an empty array when none exist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseClassResponse'
+    post:
+      operationId: createClass
+      summary: Create a class
+      description: Creates a class with a name between 1 and 150 characters.
+      tags: [Classes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClassRequest'
+            example:
+              name: HCI
+      responses:
+        '201':
+          description: Class created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseClassResponse'
+        '400':
+          description: Invalid request body, missing or empty name, or name longer than 150 characters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks:
+    get:
+      operationId: listTasks
+      summary: List tasks
+      description: Returns all tasks ordered by ID, including completed tasks.
+      tags: [Tasks]
+      responses:
+        '200':
+          description: Tasks retrieved successfully. Returns an empty array when none exist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskResponse'
+    post:
+      operationId: createTask
+      summary: Create a task
+      description: Creates a task for an existing class. Priority defaults to MEDIUM and completed defaults to false.
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Invalid request body, missing required fields, invalid title length, or nonpositive estimated minutes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Class does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Task ID.
+        schema:
+          type: integer
+          format: int64
+    put:
+      operationId: updateTask
+      summary: Replace a task
+      description: Replaces all editable fields. Set completed to true to complete or false to reopen. Empty note clears it.
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Invalid task ID or request body, missing required fields, invalid title length, or nonpositive estimated minutes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Task or referenced class does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: deleteTask
+      summary: Delete a task
+      description: Permanently deletes the task with the specified ID.
+      tags: [Tasks]
+      responses:
+        '204':
+          description: Task deleted successfully; no response body.
+        '400':
+          description: Invalid task ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Task does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    Priority:
+      type: string
+      description: Task priority.
+      enum: [LOW, MEDIUM, HIGH]
+    UpdateTaskRequest:
+      type: object
+      required: [classId, title, dueDate, estimatedMinutes, priority, completed]
+      properties:
+        classId:
+          type: integer
+          format: int64
+          description: ID of the class this task belongs to.
+          example: 1
+        title:
+          type: string
+          description: Task title.
+          minLength: 1
+          maxLength: 255
+          example: Finish assignment
+        dueDate:
+          type: string
+          format: date
+          description: Due date in YYYY-MM-DD format.
+          example: '2026-11-05'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          description: Estimated effort in minutes, greater than zero.
+          minimum: 1
+          example: 60
+        priority:
+          $ref: '#/components/schemas/Priority'
+        note:
+          type: string
+          nullable: true
+          description: Task note. Leaving empty or null will clear existing note.
+        completed:
+          type: boolean
+          description: Set true to complete the task or false to reopen it.
+    CreateTaskRequest:
+      type: object
+      required: [classId, title, dueDate, estimatedMinutes]
+      properties:
+        classId:
+          type: integer
+          format: int64
+          description: ID of the class this task belongs to.
+          example: 1
+        title:
+          type: string
+          description: Task title.
+          minLength: 1
+          maxLength: 255
+          example: Finish assignment
+        dueDate:
+          type: string
+          format: date
+          description: Due date in YYYY-MM-DD format.
+          example: '2026-11-05'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          description: Estimated effort in minutes, greater than zero.
+          minimum: 1
+          example: 60
+        priority:
+          $ref: '#/components/schemas/Priority'
+        note:
+          type: string
+          nullable: true
+          description: Optional task note.
+          example: Review chapter 3.
+        completed:
+          type: boolean
+          description: Whether the task is completed.
+          default: false
+    TaskResponse:
+      type: object
+      required: [id, classId, className, title, dueDate, estimatedMinutes, priority, note, completed]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Generated task ID.
+          example: 1
+        classId:
+          type: integer
+          format: int64
+          description: Class ID.
+          example: 1
+        className:
+          type: string
+          description: Class name.
+          example: HCI
+        title:
+          type: string
+          description: Task title.
+          example: Finish assignment
+        dueDate:
+          type: string
+          format: date
+          description: Task due date.
+          example: '2026-11-05'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          description: Estimated effort in minutes.
+          example: 60
+        priority:
+          $ref: '#/components/schemas/Priority'
+        note:
+          type: string
+          nullable: true
+          description: Optional task note.
+          example: Review chapter 3.
+        completed:
+          type: boolean
+          description: Whether the task is completed.
+    ErrorResponse:
+      type: object
+      description: Default Spring error response.
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Time of the error.
+        status:
+          type: integer
+          description: HTTP status code.
+          example: 400
+        error:
+          type: string
+          description: HTTP status description.
+          example: Bad Request
+        path:
+          type: string
+          description: Request path.
+          example: /api/classes
+    CreateClassRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Class name.
+          minLength: 1
+          maxLength: 150
+          example: HCI
+    CourseClassResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Generated class ID.
+          example: 1
+        name:
+          type: string
+          description: Class name.
+          example: HCI

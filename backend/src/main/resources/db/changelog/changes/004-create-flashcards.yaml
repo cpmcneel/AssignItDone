@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-flashcards
+      author: assignitdone
+      changes:
+        - createTable:
+            tableName: flashcards
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: deck_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_flashcards_deck
+                    references: decks(id)
+              - column:
+                  name: question
+                  type: CLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: answer
+                  type: CLOB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: position
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: flashcards
+            columnNames: deck_id, position
+            constraintName: uk_flashcards_deck_position

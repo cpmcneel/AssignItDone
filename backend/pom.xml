@@ -31,8 +31,14 @@
 		<spring-ai.version>2.0.1</spring-ai.version>
 		<springdoc.version>3.2.0</springdoc.version>
 		<openapi-generator.version>7.26.0</openapi-generator.version>
+		<swagger-annotations.version>2.2.55</swagger-annotations.version>
 	</properties>
 	<dependencies>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -106,6 +112,17 @@
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
+			<!-- Keep Spring AI's Swagger annotations compatible with springdoc's Swagger core. -->
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-annotations</artifactId>
+				<version>${swagger-annotations.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-annotations-jakarta</artifactId>
+				<version>${swagger-annotations.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.springframework.ai</groupId>
 				<artifactId>spring-ai-bom</artifactId>
@@ -168,6 +185,10 @@
 						</goals>
 						<configuration>
 							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
 								<path>
 									<groupId>org.springframework.boot</groupId>
 									<artifactId>spring-boot-configuration-processor</artifactId>

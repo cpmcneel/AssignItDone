@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - include:
+      file: changes/001-create-classes.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/002-create-tasks.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/003-create-decks.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/004-create-flashcards.yaml
+      relativeToChangelogFile: true
