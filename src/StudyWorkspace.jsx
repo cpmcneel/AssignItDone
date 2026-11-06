@@ -16,10 +16,13 @@ import {
   Plus,
   RotateCcw,
   Sparkles,
+  Send,
+  Trash2,
   Volume2,
   X,
 } from 'lucide-react';
 import { extractNoteText } from './noteFiles.js';
+import { askStudyAssistant } from './studyAssistant.js';
 import { createDeck, createFolder, generateFlashcards, gradeAnswer } from './studyTools.js';
 
 const FOLDERS_KEY = 'assignitdone.study-folders.v1';
@@ -83,10 +86,18 @@ function PracticeSession({ deck, onBack }) {
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState(null);
+  const [whyExplanation, setWhyExplanation] = useState('');
+  const [whyLoading, setWhyLoading] = useState(false);
+  const [whyError, setWhyError] = useState('');
+  const [questionHelp, setQuestionHelp] = useState('');
+  const [questionHelpLoading, setQuestionHelpLoading] = useState(false);
+  const [questionHelpError, setQuestionHelpError] = useState('');
   const [listening, setListening] = useState(false);
   const [notice, setNotice] = useState('Say your answer, type it, or choose “I don’t know yet.”');
   const [voiceSupported, setVoiceSupported] = useState(true);
   const answerRef = useRef(null);
+  const whyRequestRef = useRef(0);
+  const questionHelpRequestRef = useRef(0);
   const card = deck.cards[index];
   const progress = Math.round(((index + 1) / deck.cards.length) * 100);
 
@@ -129,13 +140,53 @@ function PracticeSession({ deck, onBack }) {
   function checkAnswer(value = answer) {
     setAnswer(value);
     setResult(gradeAnswer(value, card.back));
+    setWhyExplanation('');
+    setWhyError('');
+    setWhyLoading(true);
+    const requestId = ++whyRequestRef.current;
+    askStudyAssistant({
+      deck,
+      prompt: `For this professor-style question: "${card.front}". The note-based answer is: "${card.back}". The student's answer was: "${value || 'I do not know yet'}". Explain why the note-based answer answers the question, and connect the key details from the notes to what the question asks. Be concise, use plain language, and do not add facts that are not in the notes.`,
+    }).then((explanation) => {
+      if (requestId === whyRequestRef.current) setWhyExplanation(explanation);
+    }).catch((error) => {
+      if (requestId === whyRequestRef.current) setWhyError(error.message || 'I could not explain the answer right now.');
+    }).finally(() => {
+      if (requestId === whyRequestRef.current) setWhyLoading(false);
+    });
   }
 
   function moveNext() {
     setIndex((current) => (current + 1) % deck.cards.length);
     setAnswer('');
     setResult(null);
+    setWhyExplanation('');
+    setWhyError('');
+    setWhyLoading(false);
+    whyRequestRef.current += 1;
+    setQuestionHelp('');
+    setQuestionHelpError('');
+    setQuestionHelpLoading(false);
+    questionHelpRequestRef.current += 1;
     setNotice('Say your answer, type it, or choose “I don’t know yet.”');
+  }
+
+  async function explainQuestion() {
+    setQuestionHelp('');
+    setQuestionHelpError('');
+    setQuestionHelpLoading(true);
+    const requestId = ++questionHelpRequestRef.current;
+    try {
+      const explanation = await askStudyAssistant({
+        deck,
+        prompt: `Explain what this question is asking the student to think about: "${card.front}". Use the uploaded notes to clarify any important terms and give a small hint about how to approach it, but do not reveal the answer directly. Keep it concise and beginner-friendly.`,
+      });
+      if (requestId === questionHelpRequestRef.current) setQuestionHelp(explanation);
+    } catch (error) {
+      if (requestId === questionHelpRequestRef.current) setQuestionHelpError(error.message || 'I could not expand the question right now.');
+    } finally {
+      if (requestId === questionHelpRequestRef.current) setQuestionHelpLoading(false);
+    }
   }
 
   const resultTitle = result?.status === 'correct' ? 'You got the key ideas' : result?.status === 'partial' ? 'You got part of it' : 'Let’s learn it together';
@@ -143,14 +194,21 @@ function PracticeSession({ deck, onBack }) {
   return (
     <section className="study-session" aria-labelledby="practice-title">
       <button className="back-link" type="button" onClick={onBack}><ArrowLeft size={17} /> Back to {deck.title}</button>
-      <div className="session-topline"><span className="eyebrow">VOICE PRACTICE · {deck.title}</span><span>{index + 1} of {deck.cards.length}</span></div>
+      <div className="session-topline"><span className="eyebrow">STUDY COMPANION · {deck.title}</span><span>{index + 1} of {deck.cards.length}</span></div>
       <div className="progress-track" aria-label={`Question ${index + 1} of ${deck.cards.length}`}><span style={{ width: `${progress}%` }} /></div>
       <div className="practice-layout">
         <div className="practice-question-block">
           <div className="practice-icon"><Headphones size={22} /></div>
-          <p className="eyebrow">YOUR QUESTION</p>
+          <p className="eyebrow">PROFESSOR’S QUESTION</p>
           <h2 id="practice-title">{card.front}</h2>
           <button className="text-action" type="button" onClick={() => speak(card.front)}><Volume2 size={17} /> Read question aloud</button>
+          <button className="button secondary-button question-help-button" type="button" onClick={explainQuestion} disabled={questionHelpLoading}><CircleHelp size={16} /> {questionHelpLoading ? 'Unpacking question…' : 'Explain this question more'}</button>
+          {(questionHelp || questionHelpError) && (
+            <div className="question-help-panel" aria-live="polite">
+              <p className="eyebrow">QUESTION, UNPACKED</p>
+              <p>{questionHelp || questionHelpError}</p>
+            </div>
+          )}
         </div>
         <div className="answer-panel">
           <label className="field answer-field" htmlFor="practice-answer">Your answer
@@ -167,6 +225,10 @@ function PracticeSession({ deck, onBack }) {
               <div className="feedback-heading"><span className="feedback-mark">{result.status === 'correct' ? <CheckCircle2 size={20} /> : <CircleHelp size={20} />}</span><div><p className="eyebrow">{result.status === 'correct' ? 'NICE WORK' : result.status === 'partial' ? 'KEEP BUILDING' : 'HERE’S THE IDEA'}</p><h3>{resultTitle}</h3></div></div>
               <p className="feedback-copy">{result.feedback}</p>
               <div className="explanation-block"><span className="eyebrow">FROM YOUR NOTES</span><p>{result.explanation}</p></div>
+              <div className="why-answer-block" aria-live="polite">
+                <p className="eyebrow">WHY THIS IS THE ANSWER</p>
+                <p>{whyLoading ? 'Connecting the answer to the question…' : whyExplanation || whyError || 'The note-based answer above is the source to compare with the question.'}</p>
+              </div>
               {result.matched.length > 0 && <p className="keyword-line"><strong>You mentioned:</strong> {result.matched.slice(0, 7).join(', ')}</p>}
               {result.missing.length > 0 && <p className="keyword-line"><strong>Revisit:</strong> {result.missing.slice(0, 6).join(', ')}</p>}
               <button className="button secondary-button next-question-button" type="button" onClick={moveNext}>Next question <ArrowRight size={16} /></button>
@@ -174,6 +236,113 @@ function PracticeSession({ deck, onBack }) {
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+function StudyBuddy({ deck }) {
+  const [question, setQuestion] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.removeItem('assignitdone.study-assistant-config.v1');
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, loading]);
+
+  async function handleAsk(suggestedQuestion = '') {
+    const trimmed = (suggestedQuestion || question).trim();
+    if (!trimmed) return;
+
+    setLoading(true);
+    setError('');
+    setQuestion('');
+    setMessages((current) => [...current, { role: 'user', content: trimmed }]);
+
+    try {
+      const response = await askStudyAssistant({
+        deck,
+        prompt: trimmed,
+        history: messages,
+      });
+      setMessages((current) => [...current, { role: 'assistant', content: response }]);
+    } catch (caughtError) {
+      setError(caughtError.message || 'The helper is not available right now.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function clearChat() {
+    setMessages([]);
+    setError('');
+    setQuestion('');
+  }
+
+  function submitQuestion(event) {
+    event.preventDefault();
+    handleAsk();
+  }
+
+  const suggestions = ['Explain that more simply', 'Give me an example', 'Quiz me on this'];
+
+  return (
+    <section className="study-buddy" aria-label="Study assistant">
+      <div className="study-buddy-header">
+        <div>
+          <p className="eyebrow">AI ASSISTANT</p>
+          <h3>Ask anything</h3>
+        </div>
+        <button className="icon-button study-buddy-clear" type="button" onClick={clearChat} disabled={loading || messages.length === 0} aria-label="Clear chat" title="Clear chat">
+          <Trash2 size={17} />
+        </button>
+      </div>
+
+      <div className="study-chat" role="log" aria-label="Chat messages" aria-live="polite">
+        {messages.length === 0 && (
+          <p className="study-chat-empty">Ask anything, or ask about this study set.</p>
+        )}
+        {messages.map((message, index) => (
+          <article className={`study-chat-message ${message.role}`} key={`${message.role}-${index}`}>
+            <span>{message.role === 'user' ? 'You' : 'Assistant'}</span>
+            <p>{message.content}</p>
+          </article>
+        ))}
+        {loading && <p className="study-chat-thinking" role="status">Thinking…</p>}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {messages.some((message) => message.role === 'assistant') && !loading && (
+        <div className="study-chat-suggestions" aria-label="Suggested follow-up questions">
+          {suggestions.map((suggestion) => (
+            <button key={suggestion} type="button" onClick={() => handleAsk(suggestion)}>{suggestion}</button>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="study-buddy-error" role="alert">{error}</p>}
+      <form className="study-chat-form" onSubmit={submitQuestion}>
+        <label className="visually-hidden" htmlFor="study-chat-question">Your message</label>
+        <textarea
+          id="study-chat-question"
+          rows="2"
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) submitQuestion(event);
+          }}
+          placeholder="Message the assistant…"
+          disabled={loading}
+        />
+        <button className="button primary-button" type="submit" disabled={loading || !question.trim()} aria-label="Send message">
+          <Send size={16} />
+        </button>
+      </form>
     </section>
   );
 }
@@ -202,6 +371,7 @@ function FlashcardViewer({ deck, onBack }) {
         <span className="flashcard-hint">Select card to {showAnswer ? 'return to question' : 'reveal answer'}</span>
       </button>
       <div className="flashcard-controls"><button className="icon-button" type="button" onClick={() => moveCard(-1)} aria-label="Previous card"><ArrowLeft size={19} /></button><button className="button secondary-button" type="button" onClick={() => setShowAnswer(false)}><RotateCcw size={16} /> Start over</button><button className="icon-button" type="button" onClick={() => moveCard(1)} aria-label="Next card"><ArrowRight size={19} /></button></div>
+      <StudyBuddy deck={deck} />
     </section>
   );
 }

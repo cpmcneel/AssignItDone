@@ -32,19 +32,30 @@ Open the hosted demo on the phone. It does not need to be on the same Wi-Fi netw
 3. AssignItDone creates a flashcard deck from definition-style notes, Markdown sections, and longer fact statements. Open the deck to flip through cards or start voice practice.
 4. In practice, answer by speaking or typing. You can also choose **I don’t know yet** to see the note-based explanation and key ideas to revisit.
 
-Notes are parsed in the browser and the generated cards are saved in that browser’s local storage. This prototype does not send notes to an AI service. Answer feedback compares important words in a response with the source card, so it is a study aid rather than a semantic or instructor-grade assessment. Scanned PDFs and handwriting need OCR before their contents can be used.
+Notes are parsed in the browser and the generated cards are saved in that browser’s local storage. When a student asks the AI assistant about a deck, the chat and that deck’s generated flashcards are sent to the configured AI service. The original uploaded file is not sent. Answer feedback compares important words in a response with the source card, so it is a study aid rather than a semantic or instructor-grade assessment. Scanned PDFs and handwriting need OCR before their contents can be used.
+
+## AI assistant setup
+
+The browser sends chat requests to `/api/chat`. The server route reads the AI URL, model, and optional API key from server environment variables, so users do not enter or receive those settings.
+
+For local development, copy `.env.example` to `.env.local`, set the values for your Ollama service, then run `npm run dev`. `.env.local` is ignored by Git. If using local Ollama, it must be running on the development computer.
+
+For Vercel, add `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `OLLAMA_API_KEY` under the project’s Environment Variables settings, then redeploy. Do not prefix these names with `VITE_`; Vite exposes `VITE_` values to the browser bundle.
+
+The API route does not include user accounts or durable usage limits. Before making the app public, add access control or provider-side usage limits so other people cannot consume the site owner’s AI quota without permission.
 
 ## Privacy and saved information
 
 The hosted demo starts with generic courses and assignments, not anyone’s personal classes, calendar, or account information. Assignment changes are saved in local storage in the current browser on the current device. They are not shared with teammates, synchronized across devices, or sent back to Canvas. Clearing browser or website data may erase them.
 
-A Canvas import is a snapshot of the calendar when imported. Completing or editing an assignment here does not change the original Canvas course. There is no direct Canvas account connection or backend in this prototype.
+A Canvas import is a snapshot of the calendar when imported. Completing or editing an assignment here does not change the original Canvas course. There is no direct Canvas account connection.
 
 ## Run and test locally
 
 ```sh
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Vite prints the local development URL when the server starts. Run the parser and voice-command unit tests with `npm test`, and create a production build with `npm run build`.
+Add your private AI service values to `.env.local` before using the assistant. Vite prints the local development URL when the server starts. Run the unit tests with `npm test`, and create a production build with `npm run build`.
