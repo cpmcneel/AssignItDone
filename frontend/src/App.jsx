@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  FileUp,
   Mic,
   Pause,
   Play,
@@ -20,6 +21,8 @@ import {
 import { parseVoiceAssignment } from './voiceCommands.js';
 import StudyWorkspace from './StudyWorkspace.jsx';
 import ClassForm from './ClassForm.jsx';
+import CalendarImportDialog from './CalendarImportDialog.jsx';
+import { parseCanvasCalendar } from './canvasCalendar.js';
 import { apiRequest } from './api.js';
 import { toAssignment, toTaskRequest } from './taskData.js';
 
@@ -157,6 +160,7 @@ export default function App() {
   const [availableMinutes, setAvailableMinutes] = useState(30);
   const [dialogAssignment, setDialogAssignment] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [calendarImportOpen, setCalendarImportOpen] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
   const [notice, setNotice] = useState('Add a task or pick how much time you have.');
@@ -239,6 +243,51 @@ export default function App() {
       setVoiceTranscript('');
     } catch (error) {
       setTaskError(`Could not save task: ${error.message}`);
+    } finally {
+      setTaskBusy(false);
+    }
+  }
+
+  // Used Codex to help connect calendar imports to the backend task API.
+  async function importCalendar(file, classId) {
+    if (taskBusy) return;
+    setTaskBusy(true);
+    setTaskError('');
+    let imported = 0;
+    try {
+      if (!classes.some((course) => course.id === classId)) throw new Error('Select a class.');
+      if (!file.name.toLowerCase().endsWith('.ics')) throw new Error('Choose a .ics calendar file.');
+      if (file.size > 2 * 1024 * 1024) throw new Error('Choose a calendar smaller than 2 MB.');
+      let tasks;
+      try {
+        tasks = parseCanvasCalendar(await file.text());
+      } catch {
+        throw new Error('Could not read this calendar. Export a new .ics file from Canvas.');
+      }
+      if (!tasks.length) throw new Error('No tasks with titles and due dates were found.');
+      if (tasks.length > 200) throw new Error('Import at most 200 tasks at a time.');
+      if (tasks.some((task) => task.title.length > 255)) throw new Error('A calendar title exceeds 255 characters. Shorten it before importing.');
+
+      const taskKey = (task) => JSON.stringify([task.classId, task.title.trim().toLowerCase(), task.dueDate]);
+      const existing = new Set(assignments.map(taskKey));
+      let skipped = 0;
+      for (const task of tasks) {
+        const values = { ...task, classId };
+        const key = taskKey(values);
+        if (existing.has(key)) {
+          skipped++;
+          continue;
+        }
+        const saved = toAssignment(await apiRequest('/tasks', { method: 'POST', body: toTaskRequest(values) }));
+        setAssignments((current) => [...current, saved]);
+        existing.add(key);
+        imported++;
+      }
+      setNotice(`Imported ${imported} tasks.${skipped ? ` Skipped ${skipped} matching tasks already on your list.` : ''}`);
+      setActiveView('tasks');
+      setCalendarImportOpen(false);
+    } catch (error) {
+      setTaskError(`${imported ? `${imported} tasks were saved before the import stopped. ` : ''}${error.message}`);
     } finally {
       setTaskBusy(false);
     }
@@ -364,6 +413,9 @@ export default function App() {
           <span>Assign<span className="brand-accent">IT</span>Done</span>
         </a>
         <div className="top-actions">
+          <button className="button secondary-button import-button" type="button" disabled={taskBusy || tasksLoading || classesLoading || Boolean(tasksLoadError) || Boolean(classesError)} onClick={() => { setTaskError(''); setCalendarImportOpen(true); }} aria-label="Import class schedule">
+            <FileUp size={17} /><span className="import-label">Import class schedule</span>
+          </button>
           <button className="icon-button add-button" type="button" disabled={taskBusy || tasksLoading || Boolean(tasksLoadError)} onClick={() => openDialog()} aria-label="Add a task"><Plus size={23} /></button>
         </div>
       </header>
@@ -457,6 +509,7 @@ export default function App() {
         </> : <StudyWorkspace classes={classes} classesLoading={classesLoading} onCreateClass={createClass} />}
       </main>
 
+      {calendarImportOpen && <CalendarImportDialog classes={classes} busy={taskBusy} error={taskError} onImport={importCalendar} onClose={() => { setCalendarImportOpen(false); setTaskError(''); }} />}
       {dialogOpen && <AssignmentDialog assignment={dialogAssignment} classes={classes} classesLoading={classesLoading} onCreateClass={createClass} busy={taskBusy} error={taskError} voiceTranscript={voiceTranscript} onClose={() => { setDialogOpen(false); setDialogAssignment(null); setVoiceTranscript(''); }} onSave={saveAssignment} onDelete={deleteAssignment} />}
     </div>
   );

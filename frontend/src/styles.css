@@ -86,6 +86,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .icon-button:hover { background: white; transform: translateY(-1px); }
 .add-button { width: 48px; height: 48px; color: white; background: var(--green-dark); border-color: var(--green-dark); }
 .add-button:hover { color: white; background: var(--green); }
+.import-button { gap: 8px; white-space: nowrap; }
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -617,6 +618,8 @@ h1 { font-size: 54px; line-height: 1.08; }
   .brand { font-size: 19px; }
   .brand-mark { width: 35px; height: 35px; border-radius: 10px; }
   .top-actions { gap: 8px; }
+  .import-button { min-width: 42px; padding: 0 10px; }
+  .import-label { display: none; }
   .icon-button { width: 42px; height: 42px; }
   .add-button { width: 44px; height: 44px; }
   .main-content { width: calc(100% - 32px); padding-top: 34px; }
