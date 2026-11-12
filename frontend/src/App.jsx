@@ -249,6 +249,7 @@ export default function App() {
   }
 
   // Used Codex to help connect calendar imports to the backend task API.
+  // Prompt: Connect the existing Canvas calendar parser to the backend task endpoints.
   async function importCalendar(file, classId) {
     if (taskBusy) return;
     setTaskBusy(true);
