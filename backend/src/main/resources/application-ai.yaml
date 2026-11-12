@@ -1,0 +1,13 @@
+spring:
+  ai:
+    model:
+      chat: openai
+    openai:
+      base-url: ${OLLAMA_BASE_URL:https://ollama.com/v1}
+      api-key: ${OLLAMA_API_KEY}
+      timeout: 60s
+      max-retries: 0
+      chat:
+        model: ${OLLAMA_MODEL}
+        temperature: 0.3
+        max-tokens: 4096

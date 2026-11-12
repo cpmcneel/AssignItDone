@@ -1,6 +1,8 @@
 openapi: 3.0.3
 #Used Codex to help draft the OpenAPI schema, then reviewed and adjusted the endpoints, request bodies, and responses to fit the project.
 #"Create an OpenAPI schema for the class, task endpoints. Include simple request and response schemas, required fields, and error responses. Follow the existing project conventions."
+#"Update the OpenAPI schema with endpoints for listing and creating decks, getting a deck’s flashcards, generating cards from notes, and AI chat. Include request and response fields, 
+# validation limits, and error responses. Follow the existing conventions and regenerate the interfaces and DTOs."
 info:
   title: AssignItDone API
   description: API contract for the AssignItDone backend.
@@ -151,8 +153,300 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/decks:
+    get:
+      operationId: listDecks
+      summary: List decks
+      description: Returns all decks ordered by ID, with their class and card count.
+      tags: [Decks]
+      responses:
+        '200':
+          description: Decks retrieved successfully. Returns an empty array when none exist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeckResponse'
+    post:
+      operationId: createDeck
+      summary: Create a deck with flashcards
+      description: Saves the deck and its cards together. Card positions are assigned from zero in request order. Either all records are saved or none are.
+      tags: [Decks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeckRequest'
+      responses:
+        '201':
+          description: Deck and cards created successfully. Retrieve the cards through the deck flashcards endpoint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeckResponse'
+        '400':
+          description: Invalid request body, missing fields, invalid text lengths, or card count outside 1 to 100.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Class does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/decks/{id}/flashcards:
+    get:
+      operationId: listDeckFlashcards
+      summary: List a deck's flashcards
+      description: Returns the specified deck's cards ordered by position, starting at zero.
+      tags: [Decks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Deck ID.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Flashcards retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FlashcardResponse'
+        '400':
+          description: Invalid deck ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Deck does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/flashcards/generate:
+    post:
+      operationId: generateFlashcards
+      summary: Generate flashcards from notes
+      description: Uses AI to create up to 20 question-and-answer cards from extracted text. Nothing is saved. Returns an empty array when the notes contain no usable study material.
+      tags: [Flashcards]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateFlashcardsRequest'
+      responses:
+        '200':
+          description: Generated cards ready for review and optional saving through POST /api/decks.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 20
+                items:
+                  $ref: '#/components/schemas/FlashcardInput'
+        '400':
+          description: Missing, blank, or oversized text. At most 20000 characters are accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: AI request failed or returned invalid, incomplete, or oversized card data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AI is disabled. Configure Ollama Cloud credentials and activate the ai profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/chat:
+    post:
+      operationId: askChat
+      summary: Ask the AI assistant
+      description: Answers one independent question, optionally using a saved deck as context. Previous messages are not sent or stored. Deck context must fit within 20000 characters.
+      tags: [Chat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: AI answer returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Missing, blank, or oversized question, invalid deck ID, or oversized deck context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The specified deck does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: AI request failed or returned an empty or oversized answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AI is disabled. Configure Ollama Cloud credentials and activate the ai profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    ChatRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          description: Current question. Each request is independent.
+          minLength: 1
+          maxLength: 12000
+          example: Explain usability in simple terms.
+        deckId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional saved deck ID. Its cards are loaded by the backend.
+          example: 1
+    ChatResponse:
+      type: object
+      required: [answer]
+      properties:
+        answer:
+          type: string
+          description: AI-generated answer.
+          minLength: 1
+          maxLength: 20000
+          example: Usability describes how easily someone can use a product to achieve a goal.
+    GenerateFlashcardsRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: Readable text extracted from notes. Must contain non-whitespace text.
+          minLength: 1
+          maxLength: 20000
+          example: Usability is how easily people can use a product.
+    CreateDeckRequest:
+      type: object
+      required: [classId, title, cards]
+      properties:
+        classId:
+          type: integer
+          format: int64
+          description: ID of the class this deck belongs to.
+          example: 1
+        title:
+          type: string
+          description: Deck title.
+          minLength: 1
+          maxLength: 255
+          example: HCI definitions
+        cards:
+          type: array
+          description: Cards in their desired study order. IDs and positions are assigned by the backend.
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/FlashcardInput'
+    FlashcardInput:
+      type: object
+      required: [question, answer]
+      properties:
+        question:
+          type: string
+          description: Flashcard question.
+          minLength: 1
+          maxLength: 2000
+          example: What is usability?
+        answer:
+          type: string
+          description: Flashcard answer.
+          minLength: 1
+          maxLength: 10000
+          example: How easily people can use a product to achieve their goals.
+    DeckResponse:
+      type: object
+      required: [id, classId, className, title, cardCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Generated deck ID.
+          example: 1
+        classId:
+          type: integer
+          format: int64
+          description: Class ID.
+          example: 1
+        className:
+          type: string
+          description: Class name.
+          example: HCI
+        title:
+          type: string
+          description: Deck title.
+          example: HCI definitions
+        cardCount:
+          type: integer
+          format: int64
+          description: Number of flashcards in this deck.
+          example: 2
+    FlashcardResponse:
+      type: object
+      required: [id, deckId, question, answer, position]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Generated flashcard ID.
+          example: 1
+        deckId:
+          type: integer
+          format: int64
+          description: Deck ID.
+          example: 1
+        question:
+          type: string
+          description: Flashcard question.
+          example: What is usability?
+        answer:
+          type: string
+          description: Flashcard answer.
+          example: How easily people can use a product to achieve their goals.
+        position:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Zero-based study order within the deck.
+          example: 0
     Priority:
       type: string
       description: Task priority.

@@ -1,4 +1,8 @@
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
   application:
     name: backend
   datasource:
@@ -11,6 +15,16 @@ spring:
       ddl-auto: validate
   liquibase:
     change-log: classpath:/db/changelog/db.changelog-master.yaml
+  ai:
+    # Enable chat with the ai profile after configuring Ollama Cloud credentials.
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
 
 app:
   api:
