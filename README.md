@@ -1,7 +1,27 @@
 # AssignItDone
 
-Due to a lack of AI integration at this stage, run the following commands to start the backend bypassing the spring ai.
+Put this in `backend/.env` using your key from [Groq](https://console.groq.com/keys). The variable names still say Ollama but Ollama no longer allows free cloud access.
 
-`cd backend`
+```properties
+SPRING_PROFILES_ACTIVE=ai
+OLLAMA_BASE_URL=https://api.groq.com/openai/v1
+OLLAMA_MODEL=openai/gpt-oss-120b
+OLLAMA_API_KEY=your-groq-key
+```
 
-`./mvnw spring-boot:run -Dmaven.test.skip=true -Dspring-boot.run.arguments="--spring.ai.model.chat=none --spring.ai.model.embedding=none --spring.ai.model.image=none --spring.ai.model.audio.speech=none --spring.ai.model.audio.transcription=none --spring.ai.model.moderation=none"`
+Backend (Java 25):
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dmaven.test.skip=true
+```
+
+Frontend, in another terminal:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173. Data resets when the backend restarts.
